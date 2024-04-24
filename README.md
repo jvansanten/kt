@@ -301,6 +301,18 @@ Example:
         "mode": "TLS-1way"
     }
 
+### SASL
+
+Required fields:
+
+ - `mode`: This needs to be set to `SASL` (plaintext) or `SASL_SSL` (TLS)
+ - `sasl_plain_user`: Your user name
+ - `sasl_plain_password`: Your password
+
+Optional fields:
+
+ - `sasl_mechanism`: One of `PLAIN`, `SCRAM-SHA-256`, or `SCRAM-SHA-512`. If omitted or empty, defaults to `PLAIN`.
+
 ### Other modes
 
 Please create an

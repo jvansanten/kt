@@ -207,6 +207,7 @@ type authConfig struct {
 	ClientCertKey     string `json:"client-certificate-key"`
 	SASLPlainUser     string `json:"sasl_plain_user"`
 	SASLPlainPassword string `json:"sasl_plain_password"`
+	SASLMechanism     string `json:"sasl_mechanism"`
 }
 
 func setupAuth(auth authConfig, saramaCfg *sarama.Config) error {
@@ -220,16 +221,34 @@ func setupAuth(auth authConfig, saramaCfg *sarama.Config) error {
 	case "TLS-1way":
 		return setupAuthTLS1Way(auth, saramaCfg)
 	case "SASL":
-		return setupSASL(auth, saramaCfg)
+		return setupSASL(auth, saramaCfg, false)
+	case "SASL_SSL":
+		return setupSASL(auth, saramaCfg, true)
 	default:
 		return fmt.Errorf("unsupport auth mode: %#v", auth.Mode)
 	}
 }
 
-func setupSASL(auth authConfig, saramaCfg *sarama.Config) error {
+func setupSASL(auth authConfig, saramaCfg *sarama.Config, ssl bool) error {
 	saramaCfg.Net.SASL.Enable = true
 	saramaCfg.Net.SASL.User = auth.SASLPlainUser
 	saramaCfg.Net.SASL.Password = auth.SASLPlainPassword
+	switch auth.SASLMechanism {
+	case "", "PLAIN":
+		saramaCfg.Net.SASL.Mechanism = sarama.SASLTypePlaintext
+	case "SCRAM-SHA-256":
+		saramaCfg.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA256
+		saramaCfg.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA256} }
+	case "SCRAM-SHA-512":
+		saramaCfg.Net.SASL.Mechanism = sarama.SASLTypeSCRAMSHA512
+		saramaCfg.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA512} }
+	default:
+		return fmt.Errorf("unsupport SASL mechanism mode: %#v", auth.SASLMechanism)
+	}
+	if ssl {
+		saramaCfg.Net.TLS.Enable = true
+		saramaCfg.Net.TLS.Config = &tls.Config{}
+	}
 	return nil
 }
 
